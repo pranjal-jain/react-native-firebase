@@ -283,6 +283,11 @@ public class DisplayNotificationTask extends AsyncTask<Void, Void, Void> {
       if (reactContext != null) {
         Utils.sendEvent(reactContext, "notifications_notification_displayed", Arguments.fromBundle(notification));
       }
+      
+      if (promise != null) {
+        promise.resolve(null);
+      }
+      
     } catch (Exception e) {
       Log.e(TAG, "Failed to send notification", e);
       if (promise != null) {
@@ -294,9 +299,11 @@ public class DisplayNotificationTask extends AsyncTask<Void, Void, Void> {
   }
 
   private NotificationCompat.Action createAction(Bundle action, Class intentClass, Bundle notification) {
+    boolean showUserInterface = action.containsKey("showUserInterface") && action.getBoolean("showUserInterface");
     String actionKey = action.getString("action");
-    PendingIntent actionIntent = createIntent(intentClass, notification, actionKey);
-
+    PendingIntent actionIntent = showUserInterface ?
+      createIntent(intentClass, notification, actionKey) :
+      createBroadcastIntent(notification, actionKey);
     int icon = getIcon(action.getString("icon"));
     String title = action.getString("title");
 
@@ -334,8 +341,19 @@ public class DisplayNotificationTask extends AsyncTask<Void, Void, Void> {
     }
 
     String notificationId = notification.getString("notificationId");
-
     return PendingIntent.getActivity(context, notificationId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT);
+  }
+
+  private PendingIntent createBroadcastIntent(Bundle notification, String action) {
+    Intent intent = new Intent(context, RNFirebaseBackgroundNotificationActionReceiver.class);
+    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+    String notificationId = notification.getString("notificationId") + action;
+
+    intent.setAction("io.invertase.firebase.notifications.BackgroundAction");
+    intent.putExtra("action", action);
+    intent.putExtra("notification", notification);
+    return PendingIntent.getBroadcast(context, notificationId.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT);
   }
 
   private RemoteInput createRemoteInput(Bundle remoteInput) {

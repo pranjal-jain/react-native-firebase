@@ -832,7 +832,10 @@ declare module 'react-native-firebase' {
         EMAIL_LINK_SIGN_IN_METHOD: string;
         EMAIL_PASSWORD_SIGN_IN_METHOD: string;
         credential: (email: string, password: string) => AuthCredential;
-        credentialWithLink: (email: string, emailLink: string) => AuthCredential;
+        credentialWithLink: (
+          email: string,
+          emailLink: string
+        ) => AuthCredential;
       };
 
       interface Auth {
