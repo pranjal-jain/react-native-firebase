@@ -258,11 +258,13 @@ public class DisplayNotificationTask extends AsyncTask<Void, Void, Void> {
           PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationId.hashCode(),
             removeNotificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
           long triggerTimeInMillis = System.currentTimeMillis() + timeoutAfter.longValue();
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeInMillis, pendingIntent);
-          } else {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTimeInMillis, pendingIntent);
-          }
+          try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+              alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTimeInMillis, pendingIntent);
+            } else {
+              alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTimeInMillis, pendingIntent);
+            }
+          } catch (SecurityException e) {}
         }
       }
       if (android.containsKey("usesChronometer")) {
