@@ -434,15 +434,19 @@ public class RNFirebaseNotificationManager {
         return;
       }
 
-      alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, fireDate, interval, pendingIntent);
+      try {
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, fireDate, interval, pendingIntent);
+      } catch (SecurityException e) {}
     } else {
-      if (schedule.containsKey("exact")
-        && schedule.getBoolean("exact")
-        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-        alarmManager.setExact(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
-      } else {
-        alarmManager.set(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
-      }
+      try {
+        if (schedule.containsKey("exact")
+          && schedule.getBoolean("exact")
+          && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+          alarmManager.setExact(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
+        } else {
+          alarmManager.set(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
+        }
+      } catch (SecurityException e) {}
     }
 
     if (promise != null) {
