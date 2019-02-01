@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.RemoteInput;
 
 import com.facebook.react.HeadlessJsTaskService;
 import com.facebook.react.ReactApplication;
@@ -24,6 +25,13 @@ public class RNFirebaseBackgroundNotificationActionReceiver extends BroadcastRec
     WritableMap notificationOpenMap = Arguments.createMap();
     notificationOpenMap.putString("action", extras.getString("action"));
     notificationOpenMap.putMap("notification", notificationMap);
+
+    Bundle extrasBundle = extras.getBundle("results");
+    if (extrasBundle != null) {
+      WritableMap results = Arguments.makeNativeMap(extrasBundle);
+      notificationOpenMap.putMap("results", results);
+    }
+
     return notificationOpenMap;
   }
 
@@ -36,13 +44,24 @@ public class RNFirebaseBackgroundNotificationActionReceiver extends BroadcastRec
     if (Utils.isAppInForeground(context)) {
       WritableMap notificationOpenMap = toNotificationOpenMap(intent);
 
-      ReactApplication reactApplication =  (ReactApplication)context.getApplicationContext();
-      ReactContext reactContext = reactApplication.getReactNativeHost().getReactInstanceManager().getCurrentReactContext();
+      ReactApplication reactApplication = (ReactApplication) context.getApplicationContext();
+      ReactContext reactContext = reactApplication
+        .getReactNativeHost()
+        .getReactInstanceManager()
+        .getCurrentReactContext();
 
       Utils.sendEvent(reactContext, "notifications_notification_opened", notificationOpenMap);
     } else {
-      Intent serviceIntent = new Intent(context, RNFirebaseBackgroundNotificationActionsService.class);
+      Intent serviceIntent = new Intent(
+        context,
+        RNFirebaseBackgroundNotificationActionsService.class
+      );
       serviceIntent.putExtras(intent.getExtras());
+
+      Bundle remoteInput = RemoteInput.getResultsFromIntent(intent);
+      if (remoteInput != null) {
+        serviceIntent.putExtra("results", remoteInput);
+      }
       context.startService(serviceIntent);
       HeadlessJsTaskService.acquireWakeLockNow(context);
     }
