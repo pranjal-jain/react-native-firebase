@@ -16,7 +16,10 @@
 #endif
 @end
 
-@implementation RNFirebaseNotifications
+@implementation RNFirebaseNotifications {
+    NSMutableDictionary<NSString *, void (^)(UIBackgroundFetchResult)> *fetchCompletionHandlers;
+    NSMutableDictionary<NSString *, void(^)(void)> *completionHandlers;
+}
 
 static RNFirebaseNotifications *theRNFirebaseNotifications = nil;
 // PRE-BRIDGE-EVENTS: Consider enabling this to allow events built up before the bridge is built to be sent to the JS side
@@ -40,7 +43,7 @@ RCT_EXPORT_MODULE();
 - (id)init {
     self = [super init];
     if (self != nil) {
-        NSLog(@"Setting up RNFirebaseNotifications instance");
+        DLog(@"Setting up RNFirebaseNotifications instance");
         [self initialise];
     }
     return self;
@@ -54,6 +57,8 @@ RCT_EXPORT_MODULE();
 
     // Set static instance for use from AppDelegate
     theRNFirebaseNotifications = self;
+    completionHandlers = [[NSMutableDictionary alloc] init];
+    fetchCompletionHandlers = [[NSMutableDictionary alloc] init];
 }
 
 // PRE-BRIDGE-EVENTS: Consider enabling this to allow events built up before the bridge is built to be sent to the JS side
@@ -95,6 +100,22 @@ RCT_EXPORT_MODULE();
     }
 }
 
+RCT_EXPORT_METHOD(complete:(NSString*)handlerKey fetchResult:(UIBackgroundFetchResult)fetchResult) {
+    if (handlerKey != nil) {
+        void (^fetchCompletionHandler)(UIBackgroundFetchResult) = fetchCompletionHandlers[handlerKey];
+        if (fetchCompletionHandler != nil) {
+            fetchCompletionHandlers[handlerKey] = nil;
+            fetchCompletionHandler(fetchResult);
+        } else {
+            void(^completionHandler)(void) = completionHandlers[handlerKey];
+            if (completionHandler != nil) {
+                completionHandlers[handlerKey] = nil;
+                completionHandler();
+            }
+        }
+    }
+}
+
 // Listen for background messages
 - (void)didReceiveRemoteNotification:(NSDictionary *)userInfo
               fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
@@ -105,6 +126,9 @@ RCT_EXPORT_MODULE();
         completionHandler(UIBackgroundFetchResultNoData);
         return;
     }
+
+    NSDictionary *notification = [self parseUserInfo:userInfo];
+    NSString *handlerKey = notification[@"notificationId"];
 
     NSString *event;
     if (RCTSharedApplication().applicationState == UIApplicationStateBackground) {
@@ -124,17 +148,21 @@ RCT_EXPORT_MODULE();
         return;
     }
 
-    NSDictionary *notification = [self parseUserInfo:userInfo];
     // For onOpened events, we set the default action name as iOS 8/9 has no concept of actions
     if (event == NOTIFICATIONS_NOTIFICATION_OPENED) {
         notification = @{
-                         @"action": DEFAULT_ACTION,
-                         @"notification": notification
-                         };
+            @"action": DEFAULT_ACTION,
+            @"notification": notification
+        };
+    }
+
+    if (handlerKey != nil) {
+        fetchCompletionHandlers[handlerKey] = completionHandler;
+    } else {
+        completionHandler(UIBackgroundFetchResultNoData);
     }
 
     [self sendJSEvent:self name:event body:notification];
-    completionHandler(UIBackgroundFetchResultNoData);
 }
 
 // *******************************************************
@@ -194,9 +222,15 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void(^)())completionHandler NS_AVAILABLE_IOS(10_0) {
 #endif
      NSDictionary *message = [self parseUNNotificationResponse:response];
+           
+     NSString *handlerKey = message[@"notification"][@"notificationId"];
 
      [self sendJSEvent:self name:NOTIFICATIONS_NOTIFICATION_OPENED body:message];
-     completionHandler();
+     if (handlerKey != nil) {
+         completionHandlers[handlerKey] = completionHandler;
+     } else {
+         completionHandler();
+     }
 }
 
 #endif
@@ -226,7 +260,7 @@ RCT_EXPORT_METHOD(cancelNotification:(NSString*) notificationId
     if ([self isIOS89]) {
         for (UILocalNotification *notification in RCTSharedApplication().scheduledLocalNotifications) {
             NSDictionary *notificationInfo = notification.userInfo;
-            if ([notificationId isEqualToString:[notificationInfo valueForKey:@"notificationId"]]) {
+            if ([notificationId isEqualToString:notificationInfo[@"notificationId"]]) {
                 [RCTSharedApplication() cancelLocalNotification:notification];
             }
         }
@@ -388,7 +422,7 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
         if ([name isEqualToString:NOTIFICATIONS_NOTIFICATION_OPENED] && !initialNotification) {
             initialNotification = body;
         } else if ([name isEqualToString:NOTIFICATIONS_NOTIFICATION_OPENED]) {
-            NSLog(@"Multiple notification open events received before the JS Notifications module has been initialised");
+            DLog(@"Multiple notification open events received before the JS Notifications module has been initialised");
         }
         // PRE-BRIDGE-EVENTS: Consider enabling this to allow events built up before the bridge is built to be sent to the JS side
         // [pendingEvents addObject:@{@"name":name, @"body":body}];
@@ -510,7 +544,7 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
                 if (attachment) {
                     [attachments addObject:attachment];
                 } else {
-                    NSLog(@"Failed to create attachment: %@", error);
+                    DLog(@"Failed to create attachment: %@", error);
                 }
             }
             content.attachments = attachments;
@@ -546,9 +580,11 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
                 calendarUnit = NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
             } else if ([interval isEqualToString:@"week"]) {
                 calendarUnit = NSCalendarUnitWeekday | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
+            } else {
+                calendarUnit = NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
             }
         } else {
-            // Needs to match exactly to the secpmd
+            // Needs to match exactly to the second
             calendarUnit = NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond;
         }
 
@@ -602,6 +638,9 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
      NSDictionary *notification = [self parseUNNotification:response.notification];
      notificationResponse[@"notification"] = notification;
      notificationResponse[@"action"] = response.actionIdentifier;
+     if ([response isKindOfClass:[UNTextInputNotificationResponse class]]) {
+         notificationResponse[@"results"] = @{@"resultKey": ((UNTextInputNotificationResponse *)response).userText};
+     }
 
      return notificationResponse;
 }
@@ -698,7 +737,7 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
                                        || [k3 isEqualToString:@"title-loc-key"]) {
                                 // Ignore known keys
                             } else {
-                                NSLog(@"Unknown alert key: %@", k2);
+                                DLog(@"Unknown alert key: %@", k2);
                             }
                         }
                     } else {
@@ -711,7 +750,7 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
                 } else if ([k2 isEqualToString:@"sound"]) {
                     notification[@"sound"] = aps[k2];
                 } else {
-                    NSLog(@"Unknown aps key: %@", k2);
+                    DLog(@"Unknown aps key: %@", k2);
                 }
             }
         } else if ([k1 isEqualToString:@"gcm.message_id"]) {
@@ -738,6 +777,12 @@ RCT_EXPORT_METHOD(jsInitialised:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
 
 - (NSArray<NSString *> *)supportedEvents {
     return @[NOTIFICATIONS_NOTIFICATION_DISPLAYED, NOTIFICATIONS_NOTIFICATION_OPENED, NOTIFICATIONS_NOTIFICATION_RECEIVED];
+}
+
+- (NSDictionary *) constantsToExport {
+    return @{ @"backgroundFetchResultNoData" : @(UIBackgroundFetchResultNoData),
+              @"backgroundFetchResultNewData" : @(UIBackgroundFetchResultNewData),
+              @"backgroundFetchResultFailed" : @(UIBackgroundFetchResultFailed)};
 }
 
 + (BOOL)requiresMainQueueSetup
