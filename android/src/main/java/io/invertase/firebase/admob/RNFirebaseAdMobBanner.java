@@ -1,7 +1,5 @@
 package io.invertase.firebase.admob;
 
-import android.support.annotation.Nullable;
-
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -19,41 +17,19 @@ import com.google.android.gms.ads.AdView;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
-
-  public static final String REACT_CLASS = "RNFirebaseAdMobBanner";
-  public static final String BANNER_EVENT = "onBannerEvent";
-
-  public enum Events {
-    EVENT_AD_SIZE_CHANGE("onSizeChange"),
-    EVENT_AD_LOADED("onAdLoaded"),
-    EVENT_AD_FAILED_TO_LOAD("onAdFailedToLoad"),
-    EVENT_AD_OPENED("onAdOpened"),
-    EVENT_AD_CLOSED("onAdClosed"),
-    EVENT_AD_LEFT_APPLICATION("onAdLeftApplication");
-
-    private final String event;
-
-    Events(final String name) {
-      event = name;
-    }
-
-    @Override
-    public String toString() {
-      return event;
-    }
-  }
-
+  private static final String REACT_CLASS = "RNFirebaseAdMobBanner";
+  private static final String BANNER_EVENT = "onBannerEvent";
   private ThemedReactContext context;
   private ReactViewGroup viewGroup;
   private RCTEventEmitter emitter;
   private Boolean requested = false;
-
   // Internal prop values
   private AdRequest.Builder request;
   private AdSize size;
   private String unitId;
-
 
   @Override
   public String getName() {
@@ -79,7 +55,7 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
     return viewGroup;
   }
 
-  AdView getAdView() {
+  private AdView getAdView() {
     return (AdView) viewGroup.getChildAt(0);
   }
 
@@ -165,7 +141,7 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
   /**
    * Loads a new ad into a viewGroup
    */
-  void requestAd() {
+  private void requestAd() {
     // If the props have not yet been set
     if (size == null || unitId == null || request == null) {
       return;
@@ -188,7 +164,7 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
   /**
    * Listen to Ad events
    */
-  void setAdListener() {
+  private void setAdListener() {
     final AdView adView = getAdView();
 
     adView.setAdListener(new AdListener() {
@@ -197,15 +173,22 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
         int left = adView.getLeft();
         int top = adView.getTop();
 
-        int width = adView.getAdSize().getWidthInPixels(context);
-        int height = adView.getAdSize().getHeightInPixels(context);
+        int width = adView
+          .getAdSize()
+          .getWidthInPixels(context);
+        int height = adView
+          .getAdSize()
+          .getHeightInPixels(context);
 
         adView.measure(width, height);
         adView.layout(left, top, left + width, top + height);
 
         WritableMap payload = Arguments.createMap();
 
-        payload.putBoolean(RNFirebaseAdMobNativeExpress.Events.EVENT_AD_VIDEO_CONTENT.toString(), false);
+        payload.putBoolean(
+          RNFirebaseAdMobNativeExpress.Events.EVENT_AD_VIDEO_CONTENT.toString(),
+          false
+        );
         payload.putInt("width", width);
         payload.putInt("height", height);
 
@@ -241,7 +224,7 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
    * @param type
    * @param payload
    */
-  void sendEvent(String type, final @Nullable WritableMap payload) {
+  private void sendEvent(String type, final @Nullable WritableMap payload) {
     WritableMap event = Arguments.createMap();
     event.putString("type", type);
 
@@ -250,5 +233,25 @@ public class RNFirebaseAdMobBanner extends SimpleViewManager<ReactViewGroup> {
     }
 
     emitter.receiveEvent(viewGroup.getId(), BANNER_EVENT, event);
+  }
+
+  public enum Events {
+    EVENT_AD_SIZE_CHANGE("onSizeChange"),
+    EVENT_AD_LOADED("onAdLoaded"),
+    EVENT_AD_FAILED_TO_LOAD("onAdFailedToLoad"),
+    EVENT_AD_OPENED("onAdOpened"),
+    EVENT_AD_CLOSED("onAdClosed"),
+    EVENT_AD_LEFT_APPLICATION("onAdLeftApplication");
+
+    private final String event;
+
+    Events(final String name) {
+      event = name;
+    }
+
+    @Override
+    public String toString() {
+      return event;
+    }
   }
 }

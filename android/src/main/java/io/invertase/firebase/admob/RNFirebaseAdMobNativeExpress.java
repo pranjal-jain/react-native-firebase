@@ -1,7 +1,5 @@
 package io.invertase.firebase.admob;
 
-import android.support.annotation.Nullable;
-
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
@@ -21,42 +19,16 @@ import com.google.android.gms.ads.VideoOptions;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGroup> {
 
-  public static final String REACT_CLASS = "RNFirebaseAdMobNativeExpress";
-  public static final String BANNER_EVENT = "onBannerEvent";
-
-  public enum Events {
-    EVENT_AD_SIZE_CHANGE("onSizeChange"),
-    EVENT_AD_LOADED("onAdLoaded"),
-    EVENT_AD_FAILED_TO_LOAD("onAdFailedToLoad"),
-    EVENT_AD_OPENED("onAdOpened"),
-    EVENT_AD_CLOSED("onAdClosed"),
-    EVENT_AD_LEFT_APPLICATION("onAdLeftApplication"),
-    EVENT_AD_VIDEO_END("onVideoEnd"),
-    EVENT_AD_VIDEO_MUTE("onVideoMute"),
-    EVENT_AD_VIDEO_PAUSE("onVideoPause"),
-    EVENT_AD_VIDEO_PLAY("onVideoPlay"),
-    EVENT_AD_VIDEO_START("onVideoStart"),
-    EVENT_AD_VIDEO_CONTENT("hasVideoContent");
-
-    private final String event;
-
-    Events(final String name) {
-      event = name;
-    }
-
-    @Override
-    public String toString() {
-      return event;
-    }
-  }
-
+  private static final String REACT_CLASS = "RNFirebaseAdMobNativeExpress";
+  private static final String BANNER_EVENT = "onBannerEvent";
   private ThemedReactContext context;
   private ReactViewGroup viewGroup;
   private RCTEventEmitter emitter;
   private Boolean requested = false;
-
   // Internal prop values
   private AdRequest.Builder request;
   private VideoOptions.Builder videoOptions;
@@ -70,6 +42,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Create & return view instance
+   *
    * @param themedReactContext
    * @return
    */
@@ -86,7 +59,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
     return viewGroup;
   }
 
-  NativeExpressAdView getAdView() {
+  private NativeExpressAdView getAdView() {
     return (NativeExpressAdView) viewGroup.getChildAt(0);
   }
 
@@ -105,6 +78,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Declare custom events
+   *
    * @return
    */
   @Override
@@ -116,6 +90,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Handle unitId prop
+   *
    * @param view
    * @param value
    */
@@ -127,6 +102,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Handle request prop
+   *
    * @param view
    * @param map
    */
@@ -138,6 +114,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Handle video prop
+   *
    * @param view
    * @param map
    */
@@ -149,6 +126,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Handle size prop
+   *
    * @param view
    * @param value
    */
@@ -179,7 +157,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
   /**
    * Loads a new ad into a viewGroup
    */
-  void requestAd() {
+  private void requestAd() {
     if (size == null || unitId == null || request == null || videoOptions == null) {
       return;
     }
@@ -201,7 +179,7 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
   /**
    * Listen to Ad events
    */
-  void setAdListener() {
+  private void setAdListener() {
     final NativeExpressAdView adView = getAdView();
 
     adView.setAdListener(new AdListener() {
@@ -210,8 +188,12 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
         int left = adView.getLeft();
         int top = adView.getTop();
 
-        int width = adView.getAdSize().getWidthInPixels(context);
-        int height = adView.getAdSize().getHeightInPixels(context);
+        int width = adView
+          .getAdSize()
+          .getWidthInPixels(context);
+        int height = adView
+          .getAdSize()
+          .getHeightInPixels(context);
 
         adView.measure(width, height);
         adView.layout(left, top, left + width, top + height);
@@ -230,17 +212,21 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
             public void onVideoEnd() {
               sendEvent(Events.EVENT_AD_VIDEO_END.toString(), null);
             }
+
             public void onVideoMute(boolean isMuted) {
               WritableMap videoMutePayload = Arguments.createMap();
               videoMutePayload.putBoolean("isMuted", isMuted);
               sendEvent(Events.EVENT_AD_VIDEO_MUTE.toString(), videoMutePayload);
             }
+
             public void onVideoPause() {
               sendEvent(Events.EVENT_AD_VIDEO_PAUSE.toString(), null);
             }
+
             public void onVideoPlay() {
               sendEvent(Events.EVENT_AD_VIDEO_PLAY.toString(), null);
             }
+
             public void onVideoStart() {
               sendEvent(Events.EVENT_AD_VIDEO_START.toString(), null);
             }
@@ -273,10 +259,11 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
 
   /**
    * Sends an event back to the JS component to handle
+   *
    * @param type
    * @param payload
    */
-  void sendEvent(String type, final @Nullable WritableMap payload) {
+  private void sendEvent(String type, final @Nullable WritableMap payload) {
     WritableMap event = Arguments.createMap();
     event.putString("type", type);
 
@@ -284,7 +271,32 @@ public class RNFirebaseAdMobNativeExpress extends SimpleViewManager<ReactViewGro
       event.putMap("payload", payload);
     }
 
-    int id = viewGroup.getId();
     emitter.receiveEvent(viewGroup.getId(), BANNER_EVENT, event);
+  }
+
+  public enum Events {
+    EVENT_AD_SIZE_CHANGE("onSizeChange"),
+    EVENT_AD_LOADED("onAdLoaded"),
+    EVENT_AD_FAILED_TO_LOAD("onAdFailedToLoad"),
+    EVENT_AD_OPENED("onAdOpened"),
+    EVENT_AD_CLOSED("onAdClosed"),
+    EVENT_AD_LEFT_APPLICATION("onAdLeftApplication"),
+    EVENT_AD_VIDEO_END("onVideoEnd"),
+    EVENT_AD_VIDEO_MUTE("onVideoMute"),
+    EVENT_AD_VIDEO_PAUSE("onVideoPause"),
+    EVENT_AD_VIDEO_PLAY("onVideoPlay"),
+    EVENT_AD_VIDEO_START("onVideoStart"),
+    EVENT_AD_VIDEO_CONTENT("hasVideoContent");
+
+    private final String event;
+
+    Events(final String name) {
+      event = name;
+    }
+
+    @Override
+    public String toString() {
+      return event;
+    }
   }
 }

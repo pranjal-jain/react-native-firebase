@@ -2,7 +2,6 @@ package io.invertase.firebase.admob;
 
 
 import android.app.Activity;
-import android.support.annotation.Nullable;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
@@ -12,11 +11,12 @@ import com.google.android.gms.ads.reward.RewardItem;
 import com.google.android.gms.ads.reward.RewardedVideoAd;
 import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 
+import javax.annotation.Nullable;
+
 import io.invertase.firebase.Utils;
 
 public class RNFirebaseAdMobRewardedVideo implements RewardedVideoAdListener {
 
-  private RewardedVideoAd mAd;
   private String adUnit;
   private RNFirebaseAdMob adMob;
   private RewardedVideoAd rewardedVideo;
@@ -25,9 +25,14 @@ public class RNFirebaseAdMobRewardedVideo implements RewardedVideoAdListener {
     adUnit = adUnitString;
     adMob = adMobInstance;
 
-    rewardedVideo = MobileAds.getRewardedVideoAdInstance(adMob.getContext());
-
     Activity activity = adMob.getActivity();
+    // Some ads won't work without passing activity, or the app will crash
+    if (activity == null) {
+      rewardedVideo = MobileAds.getRewardedVideoAdInstance(adMob.getContext());
+    } else {
+      rewardedVideo = MobileAds.getRewardedVideoAdInstance(activity);
+    }
+
     final RNFirebaseAdMobRewardedVideo _this = this;
 
     if (activity != null) {
@@ -69,6 +74,21 @@ public class RNFirebaseAdMobRewardedVideo implements RewardedVideoAdListener {
           if (rewardedVideo.isLoaded()) {
             rewardedVideo.show();
           }
+        }
+      });
+    }
+  }
+
+  /**
+   * Show the loaded interstitial, if it's loaded
+   */
+  void setCustomData(final String customData) {
+    Activity activity = adMob.getActivity();
+    if (activity != null) {
+      activity.runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+           rewardedVideo.setCustomData(customData);
         }
       });
     }
@@ -126,7 +146,7 @@ public class RNFirebaseAdMobRewardedVideo implements RewardedVideoAdListener {
    * @param type
    * @param payload
    */
-  void sendEvent(String type, final @Nullable WritableMap payload) {
+  private void sendEvent(String type, final @Nullable WritableMap payload) {
     WritableMap map = Arguments.createMap();
     map.putString("type", type);
     map.putString("adUnit", adUnit);
